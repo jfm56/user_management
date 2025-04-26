@@ -54,11 +54,13 @@ class UserService:
         try:
             validated_data = UserCreate(**user_data).model_dump()
             existing_user = await cls.get_by_email(session, validated_data['email'])
+
             if existing_user:
                 logger.error("User with given email already exists.")
                 return None
             validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
             new_user = User(**validated_data)
+            new_user.email_verified = False
             new_nickname = generate_nickname()
             while await cls.get_by_nickname(session, new_nickname):
                 new_nickname = generate_nickname()
@@ -67,7 +69,7 @@ class UserService:
             user_count = await cls.count(session)
             new_user.role = UserRole.ADMIN if user_count == 0 else UserRole.ANONYMOUS            
             if new_user.role == UserRole.ADMIN:
-                new_user.email_verified = True
+                pass
 
             else:
                 new_user.verification_token = generate_verification_token()
