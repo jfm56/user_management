@@ -30,7 +30,10 @@ RUN python -m venv /.venv \
 FROM python:3.12-slim-bookworm as final
 
 # Upgrade libc-bin in the final stage to ensure security patch is applied
-RUN apt-get install -y libc-bin\
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    libc-bin \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
