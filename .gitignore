@@ -1,8 +1,37 @@
-venv
-_*pycache*_
-qr_codes
-*.db
-*.sqlite
-.vscode
-.env
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtualenvs
+venv/
+.env/
+.venv/
+
+# Git
+.git/
+.gitignore
+
+# Docker files
+Dockerfile
+docker-compose.yml
+
+# Local config
+*.env
+*.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Build outputs
+*.log
+dist/
+build/
+*.egg-info/
+
+# Test outputs
 .coverage
+htmlcov/
+.pytest_cache/
