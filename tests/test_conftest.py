@@ -1,64 +1,102 @@
-# test_users.py
-
-from builtins import len
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.future import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.main import app
+from app.dependencies import get_db
 from app.models.user_model import User, UserRole
-from app.utils.security import verify_password
+from app.utils.security import get_password_hash
 
-@pytest.mark.asyncio
-async def test_user_creation(db_session, verified_user):
-    """Test that a user is correctly created and stored in the database."""
-    result = await db_session.execute(select(User).filter_by(email=verified_user.email))
-    stored_user = result.scalars().first()
-    assert stored_user is not None
-    assert stored_user.email == verified_user.email
-    assert verify_password("MySuperPassword$1234", stored_user.hashed_password)
+# --- Async test client fixture ---
+@pytest.fixture
+async def async_client():
+    async with AsyncClient(app=app, base_url="http://testserver") as client:
+        yield client
 
-# Apply similar corrections to other test functions
-@pytest.mark.asyncio
-async def test_locked_user(db_session, locked_user):
-    result = await db_session.execute(select(User).filter_by(email=locked_user.email))
-    stored_user = result.scalars().first()
-    assert stored_user.is_locked
+# --- Database session fixture ---
+@pytest.fixture
+async def db_session():
+    async for session in get_db():
+        yield session
 
-@pytest.mark.asyncio
-async def test_verified_user(db_session, verified_user):
-    result = await db_session.execute(select(User).filter_by(email=verified_user.email))
-    stored_user = result.scalars().first()
-    assert stored_user.email_verified
-
-@pytest.mark.asyncio
-async def test_user_role(db_session, admin_user):
-    result = await db_session.execute(select(User).filter_by(email=admin_user.email))
-    stored_user = result.scalars().first()
-    assert stored_user.role == UserRole.ADMIN
-
-@pytest.mark.asyncio
-async def test_bulk_user_creation_performance(db_session, users_with_same_role_50_users):
-    result = await db_session.execute(select(User).filter_by(role=UserRole.AUTHENTICATED))
-    users = result.scalars().all()
-    assert len(users) == 50
-
-@pytest.mark.asyncio
-async def test_password_hashing(user):
-    assert verify_password("MySuperPassword$1234", user.hashed_password)
-
-@pytest.mark.asyncio
-async def test_user_unlock(db_session, locked_user):
-    locked_user.unlock_account()
+# --- User fixture (basic user) ---
+@pytest.fixture
+async def user(db_session: AsyncSession):
+    new_user = User(
+        nickname="testuser",
+        email="testuser@example.com",
+        hashed_password=get_password_hash("MySuperPassword$1234"),
+        email_verified=False,
+        is_locked=False,
+        role=UserRole.AUTHENTICATED
+    )
+    db_session.add(new_user)
     await db_session.commit()
-    result = await db_session.execute(select(User).filter_by(email=locked_user.email))
-    updated_user = result.scalars().first()
-    assert not updated_user.is_locked
+    await db_session.refresh(new_user)
+    return new_user
 
-@pytest.mark.asyncio
-async def test_update_professional_status(db_session, verified_user):
-    verified_user.update_professional_status(True)
+# --- Verified user fixture ---
+@pytest.fixture
+async def verified_user(db_session: AsyncSession):
+    user = User(
+        nickname="verifieduser",
+        email="verified@example.com",
+        hashed_password=get_password_hash("MySuperPassword$1234"),
+        email_verified=True,
+        is_locked=False,
+        role=UserRole.AUTHENTICATED
+    )
+    db_session.add(user)
     await db_session.commit()
-    result = await db_session.execute(select(User).filter_by(email=verified_user.email))
-    updated_user = result.scalars().first()
-    assert updated_user.is_professional
-    assert updated_user.professional_status_updated_at is not None
+    await db_session.refresh(user)
+    return user
+
+# --- Locked user fixture ---
+@pytest.fixture
+async def locked_user(db_session: AsyncSession):
+    user = User(
+        nickname="lockeduser",
+        email="locked@example.com",
+        hashed_password=get_password_hash("MySuperPassword$1234"),
+        email_verified=True,
+        is_locked=True,
+        role=UserRole.AUTHENTICATED
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+# --- Admin user fixture ---
+@pytest.fixture
+async def admin_user(db_session: AsyncSession):
+    user = User(
+        nickname="adminuser",
+        email="admin@example.com",
+        hashed_password=get_password_hash("MySuperPassword$1234"),
+        email_verified=True,
+        is_locked=False,
+        role=UserRole.ADMIN
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+# --- Bulk create 50 users fixture ---
+@pytest.fixture
+async def users_with_same_role_50_users(db_session: AsyncSession):
+    users = [
+        User(
+            nickname=f"user_{i}",
+            email=f"user_{i}@example.com",
+            hashed_password=get_password_hash("MySuperPassword$1234"),
+            email_verified=True,
+            is_locked=False,
+            role=UserRole.AUTHENTICATED
+        )
+        for i in range(50)
+    ]
+    db_session.add_all(users)
+    await db_session.commit()
+    return users
