@@ -1,9 +1,8 @@
-from builtins import str
 from pydantic import BaseModel
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str
 
     class Config:
         json_schema_extra = {
