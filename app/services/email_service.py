@@ -35,3 +35,14 @@ class EmailService:
             "verification_url": verification_url,
             "email": user.email
         }, 'email_verification')
+
+    async def send_verification_email(self, user: User):
+        if not user.verification_token:
+            raise ValueError("User does not have a verification token set.")
+
+        verification_url = f"{settings.server_base_url}verify-email/{user.id}/{user.verification_token}"
+        await self.send_user_email({
+            "name": user.first_name,
+            "verification_url": verification_url,
+            "email": user.email
+        }, 'email_verification')
