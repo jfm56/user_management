@@ -58,22 +58,25 @@ class UserService:
             if existing_user:
                 logger.error("User with given email already exists.")
                 return None
+
             validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
             new_user = User(**validated_data)
             new_user.email_verified = False
+
             new_nickname = generate_nickname()
             while await cls.get_by_nickname(session, new_nickname):
                 new_nickname = generate_nickname()
             new_user.nickname = new_nickname
+
             logger.info(f"User Role: {new_user.role}")
             user_count = await cls.count(session)
-            new_user.role = UserRole.ADMIN if user_count == 0 else UserRole.ANONYMOUS            
-            if new_user.role == UserRole.ADMIN:
-                pass
+            new_user.role = UserRole.ADMIN if user_count == 0 else UserRole.ANONYMOUS
 
-            else:
-                new_user.verification_token = generate_verification_token()
-                await email_service.send_verification_email(new_user)
+            # ✅ Always generate verification token
+            new_user.verification_token = generate_verification_token()
+
+            # ✅ Always send verification email
+            await email_service.send_verification_email(new_user)
 
             session.add(new_user)
             await session.commit()
@@ -81,6 +84,7 @@ class UserService:
         except ValidationError as e:
             logger.error(f"Validation error during user creation: {e}")
             return None
+
 
     @classmethod
     async def update(cls, session: AsyncSession, user_id: UUID, update_data: Dict[str, str]) -> Optional[User]:
