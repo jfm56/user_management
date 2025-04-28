@@ -16,6 +16,11 @@
         && apt-get install -y --no-install-recommends gcc libpq-dev \
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/*
+
+    # Manually upgrade perl-base to fix CVE-2024-56406 until base image is updated.
+    RUN apt-get update && apt-get install --only-upgrade -y perl-base \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/*
     
     # Copy only the requirements first for better layer caching
     COPY requirements.txt .
