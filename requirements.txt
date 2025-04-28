@@ -39,4 +39,4 @@ pytest
 pytest-asyncio
 pytest-cov
 aiosqlite
-PyJWT>=2.8.0
+PyJWT

@@ -72,7 +72,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/user_management:${{ github.sha }} .
+          docker build --pull -t ${{ secrets.DOCKERHUB_USERNAME }}/user_management:${{ github.sha }} .
 
       - name: Push Docker image
         run: |
