@@ -41,3 +41,4 @@ pytest-cov
 aiosqlite
 PyJWT
 uvicorn[standard]
+psycopg2-binary
