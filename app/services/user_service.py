@@ -175,12 +175,17 @@ class UserService:
 
     @classmethod
     async def verify_email_with_token(cls, session: AsyncSession, user_id: UUID, token: str) -> bool:
+        logger.info(f"Attempting email verification for user_id={user_id} with token={token}")
+    
         user = await cls.get_by_id(session, user_id)
-        if not user or user.verification_token != token:
-            logger.warning(
-                f"Failed email verification attempt for user_id={user_id}. "
-                f"Provided token: {token}, Expected token: {getattr(user, 'verification_token', 'None')}"
-            )
+        if not user:
+            logger.error(f"Verification failed: User {user_id} not found.")
+            return False
+
+        logger.info(f"User found: {user.email} (verified={user.email_verified}, token={user.verification_token})")
+
+        if user.verification_token != token:
+            logger.error(f"Verification failed: Token mismatch for user {user.email}. Expected {user.verification_token} but got {token}.")
             return False
 
         user.email_verified = True
@@ -189,7 +194,8 @@ class UserService:
 
         session.add(user)
         await session.commit()
-        logger.info(f"User {user.email} successfully verified.")
+
+        logger.info(f"User {user.email} successfully verified and committed to database.")
         return True
 
     @classmethod
