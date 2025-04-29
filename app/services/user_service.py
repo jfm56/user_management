@@ -75,16 +75,18 @@ class UserService:
             # ✅ Always generate verification token
             new_user.verification_token = generate_verification_token()
 
-            # ✅ Always send verification email
+            # ✅ Correct Order:
+            session.add(new_user)
+            await session.flush()   # Flush so that new_user.id is populated by database
+
+            # ✅ NOW send verification email
             await email_service.send_verification_email(new_user)
 
-            session.add(new_user)
             await session.commit()
             return new_user
         except ValidationError as e:
             logger.error(f"Validation error during user creation: {e}")
             return None
-
 
     @classmethod
     async def update(cls, session: AsyncSession, user_id: UUID, update_data: Dict[str, str]) -> Optional[User]:
