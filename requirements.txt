@@ -40,3 +40,4 @@ pytest-asyncio
 pytest-cov
 aiosqlite
 PyJWT
+uvicorn[standard]

@@ -51,4 +51,6 @@
     
     # Switch to non-root user
     USER myuser
-    
+
+    # Run FastAPI app with uvicorn
+    CMD ["/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

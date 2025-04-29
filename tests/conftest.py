@@ -94,14 +94,18 @@ async def db_session(setup_database):
             await session.close()
 
 # Async HTTP client for API tests
+from httpx import AsyncClient, ASGITransport
+
 @pytest.fixture(scope="function")
 async def async_client(db_session):
-    async with AsyncClient(app=app, base_url="http://testserver") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         app.dependency_overrides[get_db] = lambda: db_session
         try:
             yield client
         finally:
             app.dependency_overrides.clear()
+
 
 # --- User Fixtures ---
 
