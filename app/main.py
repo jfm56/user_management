@@ -6,6 +6,12 @@ from app.database import Database
 from app.dependencies import get_settings
 from app.routers import user_routes
 from app.utils.api_description import getDescription
+import logging.config
+
+# Load logging configuration
+logging.config.fileConfig("logging.conf", disable_existing_loggers=False)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(
     title="User Management",
     description=getDescription(),
