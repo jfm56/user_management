@@ -7,6 +7,9 @@ from app.dependencies import get_settings
 from app.routers import user_routes
 from app.utils.api_description import getDescription
 import logging.config
+import os
+
+os.makedirs("logs", exist_ok=True)
 
 # Load logging configuration
 logging.config.fileConfig("logging.conf", disable_existing_loggers=False)
