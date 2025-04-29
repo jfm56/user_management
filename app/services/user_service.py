@@ -180,6 +180,7 @@ class UserService:
         user.verification_token = None  # Clear the token once used
         user.role = UserRole.AUTHENTICATED
         
+        session.add(user)
         await session.commit()
         return True
 
