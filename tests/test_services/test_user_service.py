@@ -171,31 +171,28 @@ async def test_reset_password(db_session, user):
 # Test verifying a user's email
 @pytest.mark.asyncio
 async def test_verify_email_with_token_success(db_session):
-    # Create a new user instance with a required nickname
     test_user = User(
         id=uuid4(),
         email="test@example.com",
-        nickname="testnick",
         first_name="Test",
+        nickname="tester123",
         hashed_password="hashed_dummy_password",
         role=UserRole.ANONYMOUS,
         email_verified=False,
-        verification_token=generate_verification_token(),
+        verification_token="valid_token_example"
     )
 
     db_session.add(test_user)
     await db_session.commit()
     await db_session.refresh(test_user)
 
-    # Run the actual verification test
-    result = await UserService.verify_email_with_token(db_session, test_user.id, test_user.verification_token)
-
-    updated_user = await UserService.get_by_id(db_session, test_user.id)
+    # 🔍 Now test the verification method
+    result = await UserService.verify_email_with_token(db_session, test_user.id, "valid_token_example")
 
     assert result is True
-    assert updated_user.email_verified is True
-    assert updated_user.verification_token is None
-    assert updated_user.role == UserRole.AUTHENTICATED
+    assert test_user.email_verified is True
+    assert test_user.verification_token is None
+    assert test_user.role == UserRole.AUTHENTICATED
 
 # Test unlocking a user's account
 async def test_unlock_user_account(db_session, locked_user):

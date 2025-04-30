@@ -52,42 +52,52 @@ class UserService:
     @classmethod
     async def create(cls, session: AsyncSession, user_data: Dict[str, str], email_service: EmailService) -> Optional[User]:
         try:
+            # 1. Validate incoming user data
             validated_data = UserCreate(**user_data).model_dump()
-            existing_user = await cls.get_by_email(session, validated_data['email'])
 
+            # 2. Check if user with same email exists
+            existing_user = await cls.get_by_email(session, validated_data['email'])
             if existing_user:
                 logger.error("User with given email already exists.")
                 return None
 
+            # 3. Hash password and prepare user
             validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
             new_user = User(**validated_data)
             new_user.email_verified = False
 
+            # 4. Generate unique nickname
             new_nickname = generate_nickname()
             while await cls.get_by_nickname(session, new_nickname):
                 new_nickname = generate_nickname()
             new_user.nickname = new_nickname
 
-            logger.info(f"User Role: {new_user.role}")
+            # 5. Set user role
             user_count = await cls.count(session)
             new_user.role = UserRole.ADMIN if user_count == 0 else UserRole.ANONYMOUS
 
-            # ✅ Always generate verification token
+            # ✅ 6. Generate and set verification token
             new_user.verification_token = generate_verification_token()
 
-            # ✅ Correct Order:
+            # 7. Add and flush to populate user.id
             session.add(new_user)
-            await session.flush()   # Flush so that new_user.id is populated by database
+            await session.flush()
+            await session.refresh(new_user)  # ✅ Ensures token and ID are synced with DB
 
-            # ✅ NOW send verification email
+            # ✅ 8. Send email AFTER flush (ID and token must exist)
             await email_service.send_verification_email(new_user)
 
+            # 9. Commit the transaction
             await session.commit()
             return new_user
+
         except ValidationError as e:
             logger.error(f"Validation error during user creation: {e}")
             return None
-        
+        except Exception as e:
+            logger.error(f"Unexpected error during user creation: {e}")
+            await session.rollback()
+            return None
 
     @classmethod
     async def update(cls, session: AsyncSession, user_id: UUID, update_data: Dict[str, str]) -> Optional[User]:
@@ -176,31 +186,46 @@ class UserService:
     @classmethod
     async def verify_email_with_token(cls, session: AsyncSession, user_id: UUID, token: str) -> bool:
         logger.info(f"Attempting email verification for user_id={user_id} with token={token}")
-    
-        user = await cls.get_by_id(session, user_id)
-        if not user:
-            logger.error(f"Verification failed: User {user_id} not found.")
+
+        try:
+            user = await cls.get_by_id(session, user_id)
+            if not user:
+                logger.error(f"Verification failed: User {user_id} not found.")
+                return False
+
+            logger.info(
+                f"User found: {user.email} (verified={user.email_verified}, "
+                f"token_in_db={user.verification_token})"
+            )
+
+            if user.email_verified:
+                logger.warning(f"Email already verified for user {user.email}")
+                return True
+
+            if not user.verification_token or user.verification_token != token:
+                logger.error(
+                    f"Verification failed: Token mismatch for user {user.email}. "
+                    f"Expected={user.verification_token}, Provided={token}"
+                )
+                return False
+
+            user.email_verified = True
+            user.verification_token = None
+            user.role = UserRole.AUTHENTICATED
+
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+
+            logger.info(
+                f"Email verified: user_id={user.id}, verified={user.email_verified}, role={user.role}"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Exception during email verification: {e}")
+            await session.rollback()
             return False
-
-        logger.info(f"User found: {user.email} (verified={user.email_verified}, token={user.verification_token})")
-
-        if user.verification_token != token:
-            logger.error(f"Verification failed: Token mismatch for user {user.email}. Expected {user.verification_token} but got {token}.")
-            return False
-
-        user.email_verified = True
-        user.verification_token = None
-        user.role = UserRole.AUTHENTICATED
-
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
-
-        logger.info(f"AFTER COMMIT: verified={user.email_verified}, token={user.verification_token}, role={user.role}")
-        logger.debug(f"user.verification_token = {user.verification_token}, expected token = {token}")
-        print(f"[TEST DEBUG] token set = {token}, user token in DB = {user.verification_token}")
-
-        return True
 
     @classmethod
     async def count(cls, session: AsyncSession) -> int:
