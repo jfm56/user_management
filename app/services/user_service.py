@@ -194,8 +194,12 @@ class UserService:
 
         session.add(user)
         await session.commit()
+        await session.refresh(user)
 
-        logger.info(f"User {user.email} successfully verified and committed to database.")
+        logger.info(f"AFTER COMMIT: verified={user.email_verified}, token={user.verification_token}, role={user.role}")
+        logger.debug(f"user.verification_token = {user.verification_token}, expected token = {token}")
+        print(f"[TEST DEBUG] token set = {token}, user token in DB = {user.verification_token}")
+
         return True
 
     @classmethod

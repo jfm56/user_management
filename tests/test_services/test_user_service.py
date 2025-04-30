@@ -1,4 +1,5 @@
 from builtins import range
+from uuid import uuid4
 import pytest
 from sqlalchemy import select
 from app.dependencies import get_settings
@@ -6,6 +7,8 @@ from app.models.user_model import User, UserRole
 from app.services.user_service import UserService
 from app.utils.nickname_gen import generate_nickname
 from faker import Faker
+
+from app.utils.security import generate_verification_token
 
 pytestmark = pytest.mark.asyncio
 
@@ -166,12 +169,33 @@ async def test_reset_password(db_session, user):
     assert reset_success is True
 
 # Test verifying a user's email
-async def test_verify_email_with_token(db_session, user):
-    token = "valid_token_example"  # This should be set in your user setup if it depends on a real token
-    user.verification_token = token  # Simulating setting the token in the database
+@pytest.mark.asyncio
+async def test_verify_email_with_token_success(db_session):
+    # Create a new user instance with a required nickname
+    test_user = User(
+        id=uuid4(),
+        email="test@example.com",
+        nickname="testnick",
+        first_name="Test",
+        hashed_password="hashed_dummy_password",
+        role=UserRole.ANONYMOUS,
+        email_verified=False,
+        verification_token=generate_verification_token(),
+    )
+
+    db_session.add(test_user)
     await db_session.commit()
-    result = await UserService.verify_email_with_token(db_session, user.id, token)
+    await db_session.refresh(test_user)
+
+    # Run the actual verification test
+    result = await UserService.verify_email_with_token(db_session, test_user.id, test_user.verification_token)
+
+    updated_user = await UserService.get_by_id(db_session, test_user.id)
+
     assert result is True
+    assert updated_user.email_verified is True
+    assert updated_user.verification_token is None
+    assert updated_user.role == UserRole.AUTHENTICATED
 
 # Test unlocking a user's account
 async def test_unlock_user_account(db_session, locked_user):
