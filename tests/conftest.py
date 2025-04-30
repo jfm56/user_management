@@ -41,7 +41,7 @@ from app.services.jwt_service import create_access_token
 # Setup
 fake = Faker()
 settings = get_settings()
-TEST_DATABASE_URL = settings.database_url.replace("postgresql://", "postgresql+asyncpg://")
+TEST_DATABASE_URL = settings.get_resolved_database_url()
 engine = create_async_engine(TEST_DATABASE_URL, echo=settings.debug)
 AsyncTestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 AsyncSessionScoped = scoped_session(AsyncTestingSessionLocal)

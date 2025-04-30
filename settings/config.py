@@ -4,13 +4,21 @@ from pathlib import Path
 from pydantic import Field, AnyUrl, DirectoryPath
 from pydantic_settings import BaseSettings
 
-# Determine database URL based on environment (CI vs. local)
-if os.getenv("CI") == "true":
-    DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-else:
-    DEFAULT_DATABASE_URL = "postgresql+asyncpg://user:password@postgres/myappdb"
+DEFAULT_DATABASE_URL = "postgresql+asyncpg://user:password@postgres/myappdb"
 
 class Settings(BaseSettings):
+    # If CI is enabled, override database_url dynamically
+    ci: bool = Field(default=False, description="Running in CI environment")
+
+    database_url: str = Field(default="", description="Database URL")
+
+    def get_resolved_database_url(self) -> str:
+        if self.ci:
+            return "sqlite+aiosqlite:///:memory:"
+        if self.database_url:
+            return self.database_url
+        return f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}@{self.postgres_server}:{self.postgres_port}/{self.postgres_db}"
+
     max_login_attempts: int = Field(default=3, description="Max login attempts before lockout")
 
     # Server configuration
@@ -28,9 +36,6 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15  # 15 minutes for access token
     refresh_token_expire_minutes: int = 1440  # 24 hours for refresh token
-
-    # Database configuration
-    database_url: str = Field(default=DEFAULT_DATABASE_URL, description="URL for connecting to the database")
 
     # Optional: Construct the SQLAlchemy database URL from components
     postgres_user: str = Field(default='user', description="PostgreSQL username")
