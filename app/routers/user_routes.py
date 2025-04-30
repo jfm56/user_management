@@ -228,26 +228,22 @@ async def verify_email(
     db: AsyncSession = Depends(get_db),
     email_service: EmailService = Depends(get_email_service)
 ):
-    """
-    Verify user's email with a provided token.
+    logger.info(f"Attempting email verification for user_id={user_id} with token={token}")
     
-    - **user_id**: UUID of the user to verify.
-    - **token**: Verification token sent to the user's email.
-    """
-    logger.info(f"🔍 Attempting email verification for user_id={user_id}, token={token}")
-    
-    user = await UserService.get_by_id(db, user_id)
-    if user:
-        logger.info(f"👤 User found: {user.email} (verified={user.email_verified}, token={user.verification_token})")
-    else:
-        logger.warning(f"❌ No user found with ID {user_id}")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    success = await UserService.verify_email_with_token(db, user_id, token)
-    
-    if success:
-        logger.info(f"✅ Email verified for user {user.email}")
-        return {"message": "Email verified successfully"}
-    
-    logger.warning(f"⚠️ Email verification failed for user_id={user_id}")
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired verification token")
+    try:
+        success = await UserService.verify_email_with_token(db, user_id, token)
+        if success:
+            logger.info(f"Email verified successfully for user_id={user_id}")
+            return {"message": "Email verified successfully"}
+        else:
+            logger.warning(f"Invalid or expired token used for user_id={user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification token"
+            )
+    except Exception as e:
+        logger.error(f"Exception during email verification: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal error during verification"
+        )
