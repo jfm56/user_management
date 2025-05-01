@@ -1,5 +1,7 @@
 # email_service.py
 from builtins import ValueError, dict, str
+
+from fastapi import logger
 from settings.config import settings
 from app.utils.smtp_connection import SMTPClient
 from app.utils.template_manager import TemplateManager
@@ -33,9 +35,14 @@ class EmailService:
             raise ValueError("User does not have a verification token set.")
 
         verification_url = f"{settings.server_base_url.rstrip('/')}/verify-email/{user.id}/{user.verification_token}"
+    
+        logger.info(f"Sending verification email to {user.email} with link: {verification_url}")
 
-        await self.send_user_email({
-            "name": user.first_name,
-            "verification_url": verification_url,
-            "email": user.email
-        }, 'email_verification')
+        await self.send_user_email(
+            {
+                "name": user.first_name,
+                "verification_url": verification_url,
+                "email": user.email
+            },
+            template_name='email_verification'
+        )
