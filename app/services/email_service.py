@@ -1,11 +1,13 @@
 # email_service.py
 from builtins import ValueError, dict, str
+import logging
 
-from fastapi import logger
 from settings.config import settings
 from app.utils.smtp_connection import SMTPClient
 from app.utils.template_manager import TemplateManager
 from app.models.user_model import User
+
+logger = logging.getLogger(__name__)
 
 class EmailService:
     def __init__(self, template_manager: TemplateManager):
@@ -44,5 +46,5 @@ class EmailService:
                 "verification_url": verification_url,
                 "email": user.email
             },
-            template_name='email_verification'
+            email_type='email_verification'
         )

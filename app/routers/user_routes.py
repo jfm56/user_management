@@ -198,10 +198,16 @@ async def list_users(
 
 @router.post("/register/", response_model=UserResponse, tags=["Login and Registration"])
 async def register(user_data: UserCreate, session: AsyncSession = Depends(get_db), email_service: EmailService = Depends(get_email_service)):
+    # Check if user with email already exists
+    existing_user = await UserService.get_by_email(session, user_data.email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already exists")
+    
+    # Proceed with registration if email doesn't exist
     user = await UserService.register_user(session, user_data.model_dump(), email_service)
-    if user:
-        return user
-    raise HTTPException(status_code=400, detail="Email already exists")
+    if not user:
+        raise HTTPException(status_code=500, detail="Failed to register user")
+    return user
 
 @router.post("/login/", response_model=TokenResponse, tags=["Login and Registration"])
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_db)):
