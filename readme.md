@@ -1,53 +1,200 @@
+# User Management System
 
+## Overview
 
-# The User Management System Final Project: Your Epic Coding Adventure Awaits! 🎉✨🔥
+The User Management System is a robust, scalable application for managing user accounts and handling user-related operations. It provides comprehensive user authentication, authorization, and profile management capabilities with a modern event-driven architecture for notifications.
 
-## Introduction: Buckle Up for the Ride of a Lifetime 🚀🎬
+![User Management System Architecture](https://via.placeholder.com/800x400?text=User+Management+System+Architecture)
 
-Welcome to the User Management System project - an epic open-source adventure crafted by the legendary Professor Keith Williams for his rockstar students at NJIT! 🏫👨‍🏫⭐ This project is your gateway to coding glory, providing a bulletproof foundation for a user management system that will blow your mind! 🤯 You'll bridge the gap between the realms of seasoned software pros and aspiring student developers like yourselves. 
+## Key Features
 
-### [Instructor Video - Project Overview and Tips](https://youtu.be/gairLNAp6mA) 🎥
+- **User Authentication & Authorization**
+  - Secure JWT-based authentication
+  - Role-based access control (ADMIN, MANAGER, AUTHENTICATED, ANONYMOUS)
+  - Account verification via email
+  - Protection against brute force attacks with account locking
 
-- [Introduction to the system features and overview of the project - please read](system_documentation.md) 📚
-- [Project Setup Instructions](setup.md) ⚒️
-- [Features to Select From](features.md) 🛠️
-- [About the Project](about.md)🔥🌟
+- **User Profile Management**
+  - Complete user profile creation and editing
+  - Professional status tracking
+  - Social media integration (GitHub, LinkedIn)
 
-## Goals and Objectives: Unlock Your Coding Superpowers 🎯🏆🌟
+- **Event-Driven Email Notifications**
+  - Asynchronous email processing using Celery and Kafka
+  - Reliable, scalable notification system
+  - Templates for various notification types (verification, account status, role changes)
 
-Get ready to ascend to new heights with this legendary project:
+- **API-First Design**
+  - RESTful API endpoints for all functionality
+  - Comprehensive Swagger/OpenAPI documentation
+  - Pagination for list endpoints
 
-1. **Practical Experience**: Dive headfirst into a real-world codebase, collaborate with your teammates, and contribute to an open-source project like a seasoned pro! 💻👩‍💻🔥
-2. **Quality Assurance**: Develop ninja-level skills in identifying and resolving bugs, ensuring your code quality and reliability are out of this world. 🐞🔍⚡
-3. **Test Coverage**: Write additional tests to cover edge cases, error scenarios, and important functionalities - leave no stone unturned and no bug left behind! ✅🧪🕵️‍♂️
-4. **Feature Implementation**: Implement a brand new, mind-blowing feature and make your epic mark on the project, following best practices for coding, testing, and documentation like a true artisan. ✨🚀🎆
-5. **Collaboration**: Foster teamwork and collaboration through code reviews, issue tracking, and adhering to contribution guidelines - teamwork makes the dream work, and together you'll conquer worlds! 🤝💪🌍
-6. **Industry Readiness**: Prepare for the software industry by working on a project that simulates real-world development scenarios - level up your skills to super hero status  and become an unstoppable coding force! 🔝🚀🏆⚡
+- **Testing & Quality Assurance**
+  - 80+ automated tests
+  - CI/CD pipeline with GitHub Actions
+  - Docker-based deployment
 
-## Submission and Grading: Your Chance to Shine 📝✏️📈
+## System Architecture
 
-1. **Reflection Document**: Submit a 1-2 page Word document reflecting on your learnings throughout the course and your experience working on this epic project. Include links to the closed issues for the **5 QA issues, 10 NEW tests, and 1 Feature** you'll be graded on. Make sure your project successfully deploys to DockerHub and include a link to your Docker repository in the document - let your work speak for itself! 📄🔗💥
+### Technology Stack
 
-2. **Commit History**: Show off your consistent hard work through your commit history like a true coding warrior. **Projects with less than 10 commits will get an automatic 0 - ouch!** 😬⚠️ A significant part of your project's evaluation will be based on your use of issues, commits, and following a professional development process like a boss - prove your coding prowess! 💻🔄🔥
+- **Backend**: FastAPI (Python)
+- **Database**: PostgreSQL
+- **Authentication**: JWT
+- **Message Broker**: Kafka
+- **Task Queue**: Celery with Redis
+- **Containerization**: Docker & Docker Compose
+- **Web Server**: Nginx
+- **Testing**: pytest
 
-3. **Deployability**: Broken projects that don't deploy to Dockerhub or pass all the automated tests on GitHub actions will face point deductions - nobody likes a buggy app! 🐞☠️ Show the world your flawless coding skills!
+### Event-Driven Email Architecture
 
-## Managing the Project Workload: Stay Focused, Stay Victorious ⏱️🧠⚡
+The system implements an event-driven architecture for email notifications using Kafka and Celery:
 
-This project requires effective time management and a well-planned strategy, but fear not - you've got this! Follow these steps to ensure a successful (and sane!) project outcome:
+1. **Event Publishing**: User-related events (verification, account status changes, role changes) are published to Kafka topics
+2. **Event Consumption**: Kafka consumers process events and trigger Celery tasks
+3. **Asynchronous Processing**: Celery workers handle email generation and delivery
+4. **Fault Tolerance**: Failed events can be retried, with graceful degradation to direct email sending when needed
 
-1. **Select a Feature**: [Choose a feature](features.md) from the provided list of additional improvements that sparks your interest and aligns with your goals like a laser beam. ✨⭐🎯 This is your chance to shine!
+## Setup and Installation
 
-2. **Quality Assurance (QA)**: Thoroughly test the system's major functionalities related to your chosen feature and identify at least 5 issues or bugs like a true detective. Create GitHub issues for each identified problem, providing detailed descriptions and steps to reproduce - the more detail, the merrier! 🔍🐞🕵️‍♀️ Leave no stone unturned!
+### Prerequisites
 
-3. **Test Coverage Improvement**: Review the existing test suite and identify gaps in test coverage like a pro. Create 10 additional tests to cover edge cases, error scenarios, and important functionalities related to your chosen feature. Focus on areas such as user registration, login, authorization, and database interactions. Simulate the setup of the system as the admin user, then creating users, and updating user accounts - leave no stone unturned, no bug left behind! ✅🧪🔍🔬 Become the master of testing!
+- Docker and Docker Compose
+- Git
 
-4. **New Feature Implementation**: Implement your chosen feature, following the project's coding practices and architecture like a coding ninja. Write appropriate tests to ensure your new feature is functional and reliable like a rock. Document the new feature, including its usage, configuration, and any necessary migrations - future you will thank you profusely! 🚀✨📝👩‍💻⚡ Make your mark on this project!
+### Quick Start
 
-5. **Maintain a Working Main Branch**: Throughout the project, ensure you always have a working main branch deploying to Docker like a well-oiled machine. This will prevent any last-minute headaches and ensure a smooth submission process - no tears allowed, only triumphs! 😊🚢⚓ Stay focused, stay victorious!
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/user_management.git
+   cd user_management
+   ```
 
-Remember, it's more important to make something work reliably and be reasonably complete than to implement an overly complex feature. Focus on creating a feature that you can build upon or demonstrate in an interview setting - show off your skills like a rockstar! 💪🚀🎓
+2. Create a `.env` file with the following configurations (modify as needed):
+   ```
+   DATABASE_URL=postgresql+asyncpg://user:password@postgres/myappdb
+   SMTP_SERVER=smtp.example.com
+   SMTP_PORT=587
+   SMTP_USERNAME=your_username
+   SMTP_PASSWORD=your_password
+   SERVER_BASE_URL=http://localhost
+   JWT_SECRET_KEY=your_jwt_secret_key
+   ```
 
-Don't forget to always have a working main branch deploying to Docker at all times. If you always have a working main branch, you will never be in jeopardy of receiving a very disappointing grade :-). Keep that main branch shining bright!
+3. Build and start the containers:
+   ```bash
+   docker compose up --build -d
+   ```
 
-Let's embark on this epic coding adventure together and conquer the world of software engineering! You've got this, coding rockstars! 🚀🌟✨
+4. Run database migrations:
+   ```bash
+   docker compose exec fastapi alembic upgrade head
+   ```
+
+5. Access the application:
+   - API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
+   - Web Interface: http://localhost:80
+   - PGAdmin: http://localhost:5050 (admin@example.com / adminpassword)
+
+### Development Setup
+
+1. For development, you can run the individual components locally:
+   ```bash
+   # Start the FastAPI development server
+   ./start.sh
+   
+   # Start the Celery worker
+   ./start_celery.sh
+   ```
+
+2. Running tests:
+   ```bash
+   docker compose exec fastapi pytest
+   ```
+
+## Developer Guidelines
+
+### Code Organization
+
+The project follows a clean architecture pattern with the following structure:
+
+```
+user_management/
+├── app/                  # Main application code
+│   ├── config/          # Configuration files
+│   ├── dependencies/    # FastAPI dependencies
+│   ├── models/          # Database models
+│   ├── routers/         # API endpoints
+│   ├── schemas/         # Pydantic schemas
+│   ├── services/        # Business logic
+│   ├── tasks/           # Celery tasks
+│   └── utils/           # Utility functions
+├── settings/            # Global settings
+├── tests/               # Test suite
+└── migrations/          # Alembic migrations
+```
+
+### Coding Standards
+
+- Follow PEP 8 standards for Python code
+- Use type hints for all function parameters and return values
+- Write docstrings for all modules, classes, and functions
+- Maintain test coverage for new features
+
+## Troubleshooting
+
+### Authentication Issues
+
+If you encounter 401 Unauthorized errors returning as 500 Internal Server Errors:
+
+1. **Nginx Configuration**: Ensure that Nginx is correctly passing the error codes from the FastAPI app without modification. Check the `nginx/nginx.conf` file.
+
+2. **FastAPI Exception Handlers**: The application defines custom exception handlers for authentication errors. Make sure they're correctly registered in `app/main.py`.
+
+3. **JWT Token Issues**: Verify that your JWT tokens have the correct format and are not expired. Use the included token generation tools for testing.
+
+### Event Processing Issues
+
+If email notifications are not being sent:
+
+1. **Kafka Topics**: Ensure all required Kafka topics exist:
+   ```bash
+   docker compose exec kafka kafka-topics --list --bootstrap-server kafka:29092
+   ```
+
+2. **Celery Worker**: Check if the Celery worker is running and processing tasks:
+   ```bash
+   docker compose logs celery-worker
+   ```
+
+3. **SMTP Configuration**: Verify your SMTP settings in the `.env` file or Docker environment variables.
+
+## API Documentation
+
+The API documentation is available at `/docs` (Swagger UI) or `/redoc` (ReDoc) when the application is running. These provide interactive documentation for all API endpoints.
+
+## Contributing
+
+We welcome contributions to the User Management System! Here's how you can help:
+
+1. **Report Issues**: Open an issue for any bugs or feature requests you may have.
+
+2. **Submit Pull Requests**: Feel free to fork the repository and submit pull requests for bug fixes or new features.
+
+3. **Coding Guidelines**:
+   - Write tests for new features or bug fixes
+   - Ensure all tests pass before submitting a pull request
+   - Follow the project's coding standards
+   - Update documentation as needed
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- The FastAPI team for providing an excellent framework
+- The contributors who have helped improve this project
+- Thanks to all the testers who helped identify and fix the authentication error handling issues
