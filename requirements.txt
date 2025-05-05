@@ -42,3 +42,8 @@ aiosqlite
 PyJWT
 uvicorn[standard]
 psycopg2-binary
+# Celery and message broker dependencies
+celery>=5.3.0
+redis>=4.5.0
+kafka-python>=2.0.0
+confluent-kafka>=2.2.0

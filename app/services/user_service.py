@@ -1,20 +1,22 @@
 from builtins import Exception, bool, classmethod, int, str
 from datetime import datetime, timezone
 import secrets
-from typing import Optional, Dict, List
+import logging
+from typing import Optional, Dict, List, Tuple, Any, Union
+from uuid import UUID
+
 from pydantic import ValidationError
 from sqlalchemy import func, null, update, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.dependencies import get_email_service, get_settings
-from app.models.user_model import User
+from app.models.user_model import User, UserRole
 from app.schemas.user_schemas import UserCreate, UserUpdate
 from app.utils.nickname_gen import generate_nickname
 from app.utils.security import generate_verification_token, hash_password, verify_password
-from uuid import UUID
 from app.services.email_service import EmailService
-from app.models.user_model import UserRole
-import logging
+from app.services.event_service import event_service
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -50,7 +52,12 @@ class UserService:
         return await cls._fetch_user(session, email=email)
 
     @classmethod
-    async def create(cls, session: AsyncSession, user_data: Dict[str, str], email_service: EmailService) -> Optional[User]:
+    async def create(cls, session: AsyncSession, user_data: Dict[str, str], email_service: EmailService) -> tuple[Optional[User], Optional[str]]:
+        """Create a new user
+        
+        Returns:
+            tuple: (User object or None, Error message or None)
+        """
         try:
             # 1. Validate incoming user data
             validated_data = UserCreate(**user_data).model_dump()
@@ -59,7 +66,7 @@ class UserService:
             existing_user = await cls.get_by_email(session, validated_data['email'])
             if existing_user:
                 logger.error("User with given email already exists.")
-                return None
+                return None, "Email already exists"
 
             # 3. Hash password and prepare user
             validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
@@ -76,47 +83,89 @@ class UserService:
             user_count = await cls.count(session)
             new_user.role = UserRole.ADMIN if user_count == 0 else UserRole.ANONYMOUS
 
-            # ✅ 6. Generate and set verification token
+            # Generate verification token
             new_user.verification_token = generate_verification_token()
 
             # 7. Add and flush to populate user.id
-            session.add(new_user)
-            await session.flush()
-            await session.refresh(new_user)  # ✅ Ensures token and ID are synced with DB
+            try:
+                session.add(new_user)
+                await session.flush()
+                await session.refresh(new_user)  # Ensures token and ID are synced with DB
+            except SQLAlchemyError as e:
+                await session.rollback()
+                logger.error(f"Database error during user creation: {e}")
+                return None, f"Database error: {str(e)}"
 
-            # ✅ 8. Send email AFTER flush (ID and token must exist)
-            await email_service.send_verification_email(new_user)
+            # 8. Send verification email using event-driven approach
+            # Try event-driven approach first
+            event_published = event_service.publish_account_verification_event(new_user)
+            
+            # Fall back to direct email if event publishing fails
+            if not event_published:
+                try:
+                    await email_service.send_verification_email(new_user)
+                except Exception as email_error:
+                    logger.error(f"Email verification error: {email_error}")
+                    # Continue with registration even if email fails
+                    # We'll just note the issue but still create the user
 
             # 9. Commit the transaction
             await session.commit()
-            return new_user
+            return new_user, None
 
         except ValidationError as e:
             logger.error(f"Validation error during user creation: {e}")
-            return None
+            return None, f"Validation error: {str(e)}"
         except Exception as e:
             logger.error(f"Unexpected error during user creation: {e}")
             await session.rollback()
-            return None
+            return None, f"Registration error: {str(e)}"
 
     @classmethod
     async def update(cls, session: AsyncSession, user_id: UUID, update_data: Dict[str, str]) -> Optional[User]:
         try:
-            # validated_data = UserUpdate(**update_data).dict(exclude_unset=True)
+            # First get the user to detect changes
+            current_user = await cls.get_by_id(session, user_id)
+            if not current_user:
+                logger.error(f"User {user_id} not found for update.")
+                return None
+                
+            # Save current role for comparison after update
+            old_role = current_user.role
+            old_is_professional = getattr(current_user, 'is_professional', False)
+                
+            # Validate update data
             validated_data = UserUpdate(**update_data).model_dump(exclude_unset=True)
 
+            # Handle password updates
             if 'password' in validated_data:
                 validated_data['hashed_password'] = hash_password(validated_data.pop('password'))
+                
+            # Perform the update
             query = update(User).where(User.id == user_id).values(**validated_data).execution_options(synchronize_session="fetch")
             await cls._execute_query(session, query)
+            
+            # Get updated user
             updated_user = await cls.get_by_id(session, user_id)
             if updated_user:
-                session.refresh(updated_user)  # Explicitly refresh the updated user object
+                await session.refresh(updated_user)  # Explicitly refresh the updated user object
                 logger.info(f"User {user_id} updated successfully.")
+                
+                # Check for role changes and publish events if needed
+                if 'role' in validated_data and old_role != updated_user.role:
+                    logger.info(f"User {user_id} role changed from {old_role} to {updated_user.role}")
+                    event_service.publish_role_change_event(updated_user, old_role)
+                
+                # Check for professional status changes
+                new_is_professional = getattr(updated_user, 'is_professional', False)
+                if 'is_professional' in validated_data and old_is_professional != new_is_professional and new_is_professional:
+                    logger.info(f"User {user_id} upgraded to professional status")
+                    event_service.publish_professional_status_event(updated_user)
+                    
                 return updated_user
             else:
                 logger.error(f"User {user_id} not found after update attempt.")
-            return None
+                return None
         except Exception as e:  # Broad exception handling for debugging
             logger.error(f"Error during user update: {e}")
             return None
@@ -138,7 +187,12 @@ class UserService:
         return result.scalars().all() if result else []
 
     @classmethod
-    async def register_user(cls, session: AsyncSession, user_data: Dict[str, str], get_email_service) -> Optional[User]:
+    async def register_user(cls, session: AsyncSession, user_data: Dict[str, str], get_email_service) -> tuple[Optional[User], Optional[str]]:
+        """Register a new user
+        
+        Returns:
+            tuple: (User object or None, Error message or None)
+        """
         return await cls.create(session, user_data, get_email_service)
     
 
@@ -158,10 +212,19 @@ class UserService:
                 return user
             else:
                 user.failed_login_attempts += 1
-                if user.failed_login_attempts >= settings.max_login_attempts:
+                was_just_locked = False
+                
+                if user.failed_login_attempts >= settings.max_login_attempts and not user.is_locked:
                     user.is_locked = True
+                    was_just_locked = True
+                    
                 session.add(user)
                 await session.commit()
+                
+                # Send account locked notification if the account was just locked
+                if was_just_locked:
+                    event_service.publish_account_locked_event(user)
+                    
         return None
 
     @classmethod
@@ -175,11 +238,19 @@ class UserService:
         hashed_password = hash_password(new_password)
         user = await cls.get_by_id(session, user_id)
         if user:
+            was_locked = user.is_locked
+            
             user.hashed_password = hashed_password
             user.failed_login_attempts = 0  # Resetting failed login attempts
             user.is_locked = False  # Unlocking the user account, if locked
+            
             session.add(user)
             await session.commit()
+            
+            # If the account was previously locked, send unlock notification
+            if was_locked:
+                event_service.publish_account_unlocked_event(user)
+                
             return True
         return False
 

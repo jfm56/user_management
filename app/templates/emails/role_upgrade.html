@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Role Upgraded</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #F0AD4E;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 20px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+        .button {
+            display: inline-block;
+            background-color: #F0AD4E;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .upgrade-icon {
+            font-size: 48px;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Account Role Upgraded</h1>
+        </div>
+        <div class="content">
+            <div class="upgrade-icon">⭐</div>
+            <p>Hello {{ name }},</p>
+            <p><strong>Congratulations! Your account role has been upgraded from {{ old_role }} to {{ new_role }}.</strong></p>
+            
+            <p>With this upgrade, you now have access to additional features and capabilities within our platform. Here's what you can now do with your new role:</p>
+            
+            <ul>
+                <li>Access to advanced reporting and analytics</li>
+                <li>Additional customization options</li>
+                <li>Higher limits for resource usage</li>
+                <li>Priority customer support</li>
+            </ul>
+            
+            <div style="text-align: center;">
+                <a href="{{ dashboard_url }}" class="button">Explore New Features</a>
+            </div>
+            
+            <p>We hope these additional capabilities will enhance your experience with our platform. If you have any questions about your new permissions or need assistance, please don't hesitate to contact our support team.</p>
+            
+            <p>Best regards,<br>The User Management Team</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>&copy; 2025 User Management System. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

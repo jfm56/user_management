@@ -20,8 +20,9 @@ async def test_create_user_with_valid_data(db_session, email_service):
         "password": "ValidPassword123!",
         "role": UserRole.ADMIN.name
     }
-    user = await UserService.create(db_session, user_data, email_service)
+    user, error = await UserService.create(db_session, user_data, email_service)
     assert user is not None
+    assert error is None
     assert user.email == user_data["email"]
 
 # Test creating a user with invalid data
@@ -31,8 +32,10 @@ async def test_create_user_with_invalid_data(db_session, email_service):
         "email": "invalidemail",  # Invalid email
         "password": "short",  # Invalid password
     }
-    user = await UserService.create(db_session, user_data, email_service)
+    user, error = await UserService.create(db_session, user_data, email_service)
     assert user is None
+    assert error is not None
+    assert "Validation error" in error
 
 # Test fetching a user by ID when the user exists
 async def test_get_by_id_user_exists(db_session, user):
@@ -121,8 +124,9 @@ async def test_register_user_with_valid_data(db_session, email_service):
         "password": "RegisterValid123!",
         "role": UserRole.ADMIN
     }
-    user = await UserService.register_user(db_session, user_data, email_service)
+    user, error = await UserService.register_user(db_session, user_data, email_service)
     assert user is not None
+    assert error is None
     assert user.email == user_data["email"]
 
 # Test attempting to register a user with invalid data
@@ -131,8 +135,10 @@ async def test_register_user_with_invalid_data(db_session, email_service):
         "email": "registerinvalidemail",  # Invalid email
         "password": "short",  # Invalid password
     }
-    user = await UserService.register_user(db_session, user_data, email_service)
+    user, error = await UserService.register_user(db_session, user_data, email_service)
     assert user is None
+    assert error is not None
+    assert "Validation error" in error
 
 # Test successful user login
 async def test_login_user_successful(db_session, verified_user):

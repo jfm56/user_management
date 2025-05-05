@@ -23,6 +23,7 @@ from builtins import dict, int, len, str
 from datetime import timedelta
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Request
+from starlette.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_current_user, get_db, get_email_service, require_role
@@ -198,15 +199,21 @@ async def list_users(
 
 @router.post("/register/", response_model=UserResponse, tags=["Login and Registration"])
 async def register(user_data: UserCreate, session: AsyncSession = Depends(get_db), email_service: EmailService = Depends(get_email_service)):
-    # Check if user with email already exists
-    existing_user = await UserService.get_by_email(session, user_data.email)
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already exists")
+    # No need to check if email exists first - the user_service.create method will handle this
+    user, error_message = await UserService.register_user(session, user_data.model_dump(), email_service)
     
-    # Proceed with registration if email doesn't exist
-    user = await UserService.register_user(session, user_data.model_dump(), email_service)
+    # Handle different registration error scenarios with appropriate status codes
     if not user:
-        raise HTTPException(status_code=500, detail="Failed to register user")
+        if "Email already exists" in error_message:
+            raise HTTPException(status_code=400, detail=error_message)
+        elif "Validation error" in error_message:
+            raise HTTPException(status_code=422, detail=error_message)
+        elif "Database error" in error_message:
+            raise HTTPException(status_code=500, detail=error_message)
+        else:
+            # Default error case
+            raise HTTPException(status_code=500, detail=error_message or "Failed to register user")
+    
     return user
 
 @router.post("/login/", response_model=TokenResponse, tags=["Login and Registration"])

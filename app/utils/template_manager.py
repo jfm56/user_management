@@ -1,17 +1,77 @@
 import markdown2
+import logging
 from pathlib import Path
+from string import Template
+
+logger = logging.getLogger(__name__)
 
 class TemplateManager:
     def __init__(self):
         # Dynamically determine the root path of the project
-        self.root_dir = Path(__file__).resolve().parent.parent.parent  # Adjust this depending on the structure
-        self.templates_dir = self.root_dir / 'email_templates'
+        self.root_dir = Path(__file__).resolve().parent.parent  # app directory
+        self.templates_dir = self.root_dir / 'templates' / 'emails'
+        
+        # Ensure templates directory exists
+        if not self.templates_dir.exists():
+            logger.warning(f"Email templates directory not found at {self.templates_dir}")
 
-    def _read_template(self, filename: str) -> str:
-        """Private method to read template content."""
-        template_path = self.templates_dir / filename
-        with open(template_path, 'r', encoding='utf-8') as file:
-            return file.read()
+    def _read_template(self, template_name: str) -> str:
+        """Private method to read template content.
+        
+        Args:
+            template_name: Name of the template (without extension)
+            
+        Returns:
+            str: Template content as string
+        """
+        template_path = self.templates_dir / f"{template_name}.html"
+        
+        try:
+            with open(template_path, 'r', encoding='utf-8') as file:
+                return file.read()
+        except FileNotFoundError:
+            logger.error(f"Template not found: {template_path}")
+            # Return a simple fallback template
+            return "<html><body><h1>{{ title }}</h1><p>{{ content }}</p></body></html>"
+
+    def render_template(self, template_name: str, **kwargs) -> str:
+        """Render a template with the given context variables.
+        
+        Args:
+            template_name: Name of the template (without extension)
+            **kwargs: Template variables to substitute
+            
+        Returns:
+            str: Rendered HTML content
+        """
+        # Map simplified template names to actual template files
+        template_map = {
+            'email_verification': 'email_verification',
+            'password_reset': 'password_reset',
+            'account_locked': 'account_locked',
+            'account_unlocked': 'account_unlocked',
+            'role_upgrade': 'role_upgrade',
+            'professional_status': 'professional_status'
+        }
+        
+        # Get the actual template file name
+        template_file = template_map.get(template_name, template_name)
+            
+        try:
+            # Read the template content
+            template_content = self._read_template(template_file)
+            
+            # Simple template substitution using string replace
+            # This is a basic approach; in a more complex application, consider using jinja2
+            for key, value in kwargs.items():
+                placeholder = '{{ ' + key + ' }}'
+                template_content = template_content.replace(placeholder, str(value))
+                
+            return template_content
+        except Exception as e:
+            logger.error(f"Error rendering template {template_name}: {e}")
+            # Return a simple fallback template with error details
+            return f"<html><body><h1>Error rendering template</h1><p>{str(e)}</p></body></html>"
 
     def _apply_email_styles(self, html: str) -> str:
         """Apply advanced CSS styles inline for email compatibility with excellent typography."""
