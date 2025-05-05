@@ -1,6 +1,6 @@
 import logging
 from celery import shared_task
-from app.celery_worker import celery
+from app.celery_worker import app as celery
 from app.services.email_service import EmailService
 from app.utils.template_manager import TemplateManager
 from app.models.user_model import User

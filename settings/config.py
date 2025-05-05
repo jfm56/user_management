@@ -2,11 +2,11 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str
-    smtp_server: str
-    smtp_port: int
-    smtp_username: str
-    smtp_password: str
-    server_base_url: str
+    smtp_server: str = "localhost"
+    smtp_port: int = 25
+    smtp_username: str = ""
+    smtp_password: str = ""
+    server_base_url: str = "http://localhost"
     debug: bool = False
     send_real_mail: str = "false"
     max_login_attempts: int = 5

@@ -1,4 +1,11 @@
+#!/usr/bin/env python3
 """
+This script fixes the email_routes.py file to use the correct role comparison.
+"""
+import os
+
+# The corrected content for email_routes.py
+EMAIL_ROUTES_CONTENT = '''"""
 Router for email notification testing endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
@@ -115,3 +122,11 @@ async def test_role_upgrade_email(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send role upgrade email: {str(e)}")
+'''
+
+# Write the corrected file to the user_management app
+email_routes_path = '/Users/jimmullen/user_management/app/routers/email_routes.py'
+with open(email_routes_path, 'w') as f:
+    f.write(EMAIL_ROUTES_CONTENT)
+
+print(f"Fixed email_routes.py with correct role check: current_user_data.get('role') != UserRole.ADMIN.value")

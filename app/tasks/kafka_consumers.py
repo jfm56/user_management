@@ -54,21 +54,21 @@ class KafkaEventConsumer:
         """Set up event handlers for each topic and event type."""
         return {
             self.topics['email_notifications']: {
-                'verification_email': lambda data: send_verification_email.delay(**data),
-                'account_locked': lambda data: send_account_locked_email.delay(**data),
-                'account_unlocked': lambda data: send_account_unlocked_email.delay(**data),
-                'role_upgrade': lambda data: send_role_upgrade_email.delay(**data),
-                'professional_status': lambda data: send_professional_status_email.delay(**data),
+                'verification_email': lambda data: send_verification_email.delay(user_data=data),
+                'account_locked': lambda data: send_account_locked_email.delay(user_data=data),
+                'account_unlocked': lambda data: send_account_unlocked_email.delay(user_data=data),
+                'role_upgrade': lambda data: send_role_upgrade_email.delay(user_data=data),
+                'professional_status': lambda data: send_professional_status_email.delay(user_data=data),
             },
             self.topics['account_events']: {
-                'account_locked': lambda data: send_account_locked_email.delay(**data),
-                'account_unlocked': lambda data: send_account_unlocked_email.delay(**data),
+                'account_locked': lambda data: send_account_locked_email.delay(user_data=data),
+                'account_unlocked': lambda data: send_account_unlocked_email.delay(user_data=data),
             },
             self.topics['role_changes']: {
-                'role_upgrade': lambda data: send_role_upgrade_email.delay(**data),
+                'role_upgrade': lambda data: send_role_upgrade_email.delay(user_data=data),
             },
             self.topics['verification_events']: {
-                'email_verification': lambda data: send_verification_email.delay(**data),
+                'email_verification': lambda data: send_verification_email.delay(user_data=data),
             }
         }
     
