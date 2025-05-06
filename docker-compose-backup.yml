@@ -79,19 +79,19 @@ services:
       - DATABASE_URL=postgresql+asyncpg://user:password@postgres/myappdb
       - CELERY_BROKER_URL=redis://redis:6379/0
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - SMTP_SERVER=localhost
-      - SMTP_PORT=25
-      - SMTP_USERNAME=test
-      - SMTP_PASSWORD=test
+      - SMTP_SERVER=sandbox.smtp.mailtrap.io
+      - SMTP_PORT=2525
+      - SMTP_USERNAME=956e497195a1db
+      - SMTP_PASSWORD=bbde0
       - SERVER_BASE_URL=http://localhost
-      - SEND_REAL_MAIL=false
+      - SEND_REAL_MAIL=true
       - JWT_SECRET_KEY=your_jwt_secret_key
     networks:
       - app-network
 
   fastapi:
     build: .
-    command: ["/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ./start.sh
     working_dir: /myapp
     volumes:
       - ./:/myapp/
@@ -102,17 +102,16 @@ services:
         condition: service_started
       redis:
         condition: service_started
-    # The entrypoint script will handle running the initialization scripts before starting the application
     environment:
       - DATABASE_URL=postgresql+asyncpg://user:password@postgres/myappdb
       - CELERY_BROKER_URL=redis://redis:6379/0
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - SMTP_SERVER=localhost
-      - SMTP_PORT=25
-      - SMTP_USERNAME=test
-      - SMTP_PASSWORD=test
+      - SMTP_SERVER=sandbox.smtp.mailtrap.io
+      - SMTP_PORT=2525
+      - SMTP_USERNAME=956e497195a1db
+      - SMTP_PASSWORD=bbde0
       - SERVER_BASE_URL=http://localhost
-      - SEND_REAL_MAIL=false
+      - SEND_REAL_MAIL=true
       - JWT_SECRET_KEY=your_jwt_secret_key
     ports:
       - "8000:8000"

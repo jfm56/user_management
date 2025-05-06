@@ -5,10 +5,10 @@ set -e
 if [ "${ENABLE_KAFKA:-true}" = "true" ]; then
     echo "Waiting for Kafka to be ready..."
     
-    # Check if kafka-topics.sh is available
-    if command -v kafka-topics.sh &> /dev/null; then
+    # Check if kafka-topics command is available
+    if command -v kafka-topics &> /dev/null; then
         function kafka_ready {
-            kafka-topics.sh --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092} --list 2>&1 > /dev/null
+            kafka-topics --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092} --list 2>&1 > /dev/null
             return $?
         }
         
@@ -30,19 +30,31 @@ if [ "${ENABLE_KAFKA:-true}" = "true" ]; then
             
             for TOPIC in "${TOPICS[@]}"; do
                 echo "Creating topic: $TOPIC"
-                kafka-topics.sh --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092} \
+                kafka-topics --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092} \
                     --create --if-not-exists \
                     --topic $TOPIC \
-                    --partitions ${KAFKA_TOPIC_PARTITIONS:-3} \
+                    --partitions ${KAFKA_TOPIC_PARTITIONS:-1} \
                     --replication-factor ${KAFKA_REPLICATION_FACTOR:-1} || {
                     echo "Warning: Failed to create Kafka topic $TOPIC, continuing anyway"
                 }
             done
+            
+            # List created topics for verification
+            echo "Available Kafka topics:"
+            kafka-topics --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092} --list
         else
             echo "Warning: Kafka is not available after $KAFKA_CONNECT_RETRIES attempts. Continuing without Kafka."
         fi
     else
-        echo "Warning: kafka-topics.sh command not found. Skipping Kafka topic creation."
+        echo "Warning: kafka-topics command not found. Trying to use init_kafka_topics.sh script..."
+        
+        # Try to run the dedicated Kafka init script if it exists
+        if [ -f "/myapp/init_kafka_topics.sh" ] && [ -x "/myapp/init_kafka_topics.sh" ]; then
+            echo "Running init_kafka_topics.sh script..."
+            /myapp/init_kafka_topics.sh
+        else
+            echo "Warning: Neither kafka-topics command nor init_kafka_topics.sh script found. Skipping Kafka topic creation."
+        fi
     fi
 else
     echo "Kafka integration is disabled. Skipping Kafka setup."

@@ -51,10 +51,20 @@ The User Management System is a robust, scalable application for managing user a
 
 The system implements an event-driven architecture for email notifications using Kafka and Celery:
 
-1. **Event Publishing**: User-related events (verification, account status changes, role changes) are published to Kafka topics
-2. **Event Consumption**: Kafka consumers process events and trigger Celery tasks
-3. **Asynchronous Processing**: Celery workers handle email generation and delivery
-4. **Fault Tolerance**: Failed events can be retried, with graceful degradation to direct email sending when needed
+1. **Topic Initialization**: Required Kafka topics are automatically created during container startup
+2. **Event Publishing**: User-related events (verification, account status changes, role changes) are published to Kafka topics
+3. **Event Consumption**: Kafka consumers process events and trigger Celery tasks
+4. **Asynchronous Processing**: Celery workers handle email generation and delivery
+5. **Fault Tolerance**: Failed events can be retried, with graceful degradation to direct email sending when needed
+
+#### Kafka Topics
+
+The system uses the following Kafka topics:
+
+- `user-email-notifications`: For all email-related events
+- `user-account-events`: For user account creation, deletion, and status changes
+- `user-role-changes`: For role assignment and permission changes
+- `user-verification-events`: For email verification and password reset events
 
 ## Setup and Installation
 
@@ -65,26 +75,43 @@ The system implements an event-driven architecture for email notifications using
 
 ### Quick Start
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/user_management.git
-   cd user_management
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/user-management.git
+cd user-management
 
-2. Create a `.env` file with the following configurations (modify as needed):
-   ```
-   DATABASE_URL=postgresql+asyncpg://user:password@postgres/myappdb
-   SMTP_SERVER=smtp.example.com
-   SMTP_PORT=587
-   SMTP_USERNAME=your_username
-   SMTP_PASSWORD=your_password
-   SERVER_BASE_URL=http://localhost
-   JWT_SECRET_KEY=your_jwt_secret_key
-   ```
+# Start the services with automatic Kafka topic initialization
+./start-app.sh
 
-3. Build and start the containers:
-   ```bash
-   docker compose up --build -d
+# Access the API at http://localhost:8000/docs
+```
+
+Alternatively, if you want to start services manually:
+
+```bash
+# Start Kafka and Zookeeper first
+docker compose up -d zookeeper kafka
+
+# Initialize Kafka topics
+./kafka-init.sh
+
+# Start remaining services
+docker compose up -d
+```
+
+### Environment Configuration
+
+Create a `.env` file with the following configurations (modify as needed):
+
+```
+DATABASE_URL=postgresql+asyncpg://user:password@postgres/myappdb
+SMTP_SERVER=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=your_username
+SMTP_PASSWORD=your_password
+SERVER_BASE_URL=http://localhost
+JWT_SECRET_KEY=your_jwt_secret_key
+```
    ```
 
 4. Run database migrations:
@@ -159,10 +186,16 @@ If you encounter 401 Unauthorized errors returning as 500 Internal Server Errors
 
 If email notifications are not being sent:
 
-1. **Kafka Topics**: Ensure all required Kafka topics exist:
+1. **Kafka Topics**: The system automatically creates all required Kafka topics during startup. To manually verify existing topics:
    ```bash
    docker compose exec kafka kafka-topics --list --bootstrap-server kafka:29092
    ```
+   
+   The following topics should be available:
+   - user-email-notifications
+   - user-account-events
+   - user-role-changes
+   - user-verification-events
 
 2. **Celery Worker**: Check if the Celery worker is running and processing tasks:
    ```bash
@@ -193,8 +226,3 @@ We welcome contributions to the User Management System! Here's how you can help:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Acknowledgments
-
-- The FastAPI team for providing an excellent framework
-- The contributors who have helped improve this project
-- Thanks to all the testers who helped identify and fix the authentication error handling issues
