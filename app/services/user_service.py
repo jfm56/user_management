@@ -82,6 +82,8 @@ class UserService:
             # 5. Set user role
             user_count = await cls.count(session)
             new_user.role = UserRole.ADMIN if user_count == 0 else UserRole.ANONYMOUS
+            if new_user.role == UserRole.ADMIN:
+                new_user.email_verified = True
 
             # Generate verification token
             new_user.verification_token = generate_verification_token()
