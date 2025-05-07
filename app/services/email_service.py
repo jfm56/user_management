@@ -108,13 +108,8 @@ class EmailService:
 
         html_content = self.template_manager.render_template(email_type, **user_data)
         
-        # Try to use event-driven approach first
-        if self.kafka_producer and email_type == 'email_verification':
-            event_published = self._publish_email_event('verification_email', user_data)
-            if event_published:
-                return True
-                
-        # Fall back to direct email sending if Kafka is not available or event wasn't published
+        # Publish email event (non-blocking) then send directly
+        self._publish_email_event('verification_email', user_data)
         self.smtp_client.send_email(subject_map[email_type], html_content, user_data['email'])
         return True
 
@@ -140,13 +135,8 @@ class EmailService:
             "verification_url": verification_url
         }
         
-        # Try to publish the event first
-        if self.kafka_producer:
-            event_published = self._publish_email_event('verification_email', user_data)
-            if event_published:
-                return
-                
-        # Fall back to direct email sending if Kafka is not available
+        # Publish event and always send verification email directly
+        self._publish_email_event('verification_email', user_data)
         await self.send_user_email_async(
             {
                 "name": user.first_name or user.nickname or "User",

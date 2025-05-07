@@ -96,19 +96,12 @@ class UserService:
                 logger.error(f"Database error during user creation: {e}")
                 return None, f"Database error: {str(e)}"
 
-            # 8. Send verification email using event-driven approach
-            # Try event-driven approach first
-            event_published = event_service.publish_account_verification_event(new_user)
-            
-            # Fall back to direct email if event publishing fails
-            if not event_published:
-                try:
-                    await email_service.send_verification_email(new_user)
-                except Exception as email_error:
-                    logger.error(f"Email verification error: {email_error}")
-                    # Continue with registration even if email fails
-                    # We'll just note the issue but still create the user
-
+            # 8. Send verification email (event-driven & direct)
+            event_service.publish_account_verification_event(new_user)
+            try:
+                await email_service.send_verification_email(new_user)
+            except Exception as email_error:
+                logger.error(f"Email verification error: {email_error}")
             # 9. Commit the transaction
             await session.commit()
             return new_user, None

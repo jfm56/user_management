@@ -75,16 +75,13 @@ services:
       - redis
       - kafka
       - postgres
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://user:password@postgres/myappdb
       - CELERY_BROKER_URL=redis://redis:6379/0
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - SMTP_SERVER=localhost
-      - SMTP_PORT=25
-      - SMTP_USERNAME=test
-      - SMTP_PASSWORD=test
       - SERVER_BASE_URL=http://localhost
-      - SEND_REAL_MAIL=false
       - JWT_SECRET_KEY=your_jwt_secret_key
     networks:
       - app-network
@@ -102,17 +99,13 @@ services:
         condition: service_started
       redis:
         condition: service_started
-    # The entrypoint script will handle running the initialization scripts before starting the application
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://user:password@postgres/myappdb
       - CELERY_BROKER_URL=redis://redis:6379/0
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - SMTP_SERVER=localhost
-      - SMTP_PORT=25
-      - SMTP_USERNAME=test
-      - SMTP_PASSWORD=test
       - SERVER_BASE_URL=http://localhost
-      - SEND_REAL_MAIL=false
       - JWT_SECRET_KEY=your_jwt_secret_key
     ports:
       - "8000:8000"

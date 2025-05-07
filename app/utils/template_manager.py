@@ -1,4 +1,3 @@
-import markdown2
 import logging
 from pathlib import Path
 from string import Template
@@ -24,7 +23,12 @@ class TemplateManager:
         Returns:
             str: Template content as string
         """
-        template_path = self.templates_dir / f"{template_name}.html"
+        # Determine file extension: if provided, use as-is; otherwise append .html
+        if Path(template_name).suffix:
+            template_filename = template_name
+        else:
+            template_filename = f"{template_name}.html"
+        template_path = self.templates_dir / template_filename
         
         try:
             with open(template_path, 'r', encoding='utf-8') as file:
@@ -91,16 +95,3 @@ class TemplateManager:
             if tag != 'body':  # Skip the body style since it's already applied to the <div>
                 styled_html = styled_html.replace(f'<{tag}>', f'<{tag} style="{style}">')
         return styled_html
-
-    def render_template(self, template_name: str, **context) -> str:
-        """Render a markdown template with given context, applying advanced email styles."""
-        header = self._read_template('header.md')
-        footer = self._read_template('footer.md')
-
-        # Read main template and format it with provided context
-        main_template = self._read_template(f'{template_name}.md')
-        main_content = main_template.format(**context)
-
-        full_markdown = f"{header}\n{main_content}\n{footer}"
-        html_content = markdown2.markdown(full_markdown)
-        return self._apply_email_styles(html_content)
