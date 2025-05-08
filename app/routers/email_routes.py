@@ -1,9 +1,9 @@
 """
 Router for email notification testing endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, Optional
+from typing import Optional
 from uuid import UUID
 
 from app.dependencies import get_db, get_email_service, get_current_user, get_settings
@@ -17,26 +17,32 @@ router = APIRouter(
     tags=["Email Notifications"]
 )
 
-@router.post("/test/verification", status_code=202)
+def admin_required(current_user_data: dict = Depends(get_current_user)):
+    if current_user_data.get('role') != UserRole.ADMIN.value:
+        raise HTTPException(status_code=403, detail="Only administrators can use this testing endpoint")
+    return current_user_data
+
+@router.post("/test/verification", status_code=202, dependencies=[Depends(admin_required)])
 async def test_verification_email(
     request: Request,
     background_tasks: BackgroundTasks,
-    payload: Dict[str, Any] = Body(...),
     session: AsyncSession = Depends(get_db),
-    email_service: EmailService = Depends(get_email_service),
-    current_user_data: dict = Depends(get_current_user)
+    email_service: EmailService = Depends(get_email_service)
 ):
     """
     Test endpoint to send a verification email to a user.
     This is for testing purposes only.
     """
-    # Check if the current user has admin privileges
-    if current_user_data.get('role') != UserRole.ADMIN.value:
-        raise HTTPException(status_code=403, detail="Only administrators can use this testing endpoint")
-    
     # Get the user to send the verification email to
     try:
-        user_id = payload.get("user_id")
+        body = await request.json()
+        user_id_raw = body.get("user_id")
+        if not user_id_raw:
+            raise HTTPException(status_code=422, detail="user_id is required")
+        try:
+            user_id = UUID(user_id_raw)
+        except Exception:
+            raise HTTPException(status_code=422, detail="Invalid user_id")
         user = await UserService.get_by_id(session, user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
@@ -56,26 +62,27 @@ async def test_verification_email(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send verification email: {str(e)}")
 
-@router.post("/test/account-locked", status_code=202)
+@router.post("/test/account-locked", status_code=202, dependencies=[Depends(admin_required)])
 async def test_account_locked_email(
     request: Request,
-    payload: Dict[str, Any] = Body(...),
     session: AsyncSession = Depends(get_db),
     email_service: EmailService = Depends(get_email_service),
-    settings=Depends(get_settings),
-    current_user_data: dict = Depends(get_current_user)
+    settings=Depends(get_settings)
 ):
     """
     Test endpoint to send an account locked email to a user.
     This is for testing purposes only.
     """
-    # Check if the current user has admin privileges
-    if current_user_data.get('role') != UserRole.ADMIN.value:
-        raise HTTPException(status_code=403, detail="Only administrators can use this testing endpoint")
-    
     # Get the user to send the account locked email to
     try:
-        user_id = payload.get("user_id")
+        body = await request.json()
+        user_id_raw = body.get("user_id")
+        if not user_id_raw:
+            raise HTTPException(status_code=422, detail="user_id is required")
+        try:
+            user_id = UUID(user_id_raw)
+        except Exception:
+            raise HTTPException(status_code=422, detail="Invalid user_id")
         user = await UserService.get_by_id(session, user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
@@ -95,30 +102,33 @@ async def test_account_locked_email(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send account locked email: {str(e)}")
 
-@router.post("/test/role-upgrade", status_code=202)
+@router.post("/test/role-upgrade", status_code=202, dependencies=[Depends(admin_required)])
 async def test_role_upgrade_email(
     request: Request,
-    payload: Dict[str, Any] = Body(...),
-    session: AsyncSession = Depends(get_db),
-    current_user_data: dict = Depends(get_current_user)
+    session: AsyncSession = Depends(get_db)
 ):
     """
     Test endpoint to send a role upgrade email to a user.
     This is for testing purposes only.
     """
-    # Check if the current user has admin privileges
-    if current_user_data.get('role') != UserRole.ADMIN.value:
-        raise HTTPException(status_code=403, detail="Only administrators can use this testing endpoint")
-    
     # Get the user to send the role upgrade email to
     try:
-        user_id = payload.get("user_id")
+        body = await request.json()
+        user_id_raw = body.get("user_id")
+        old_role_raw = body.get("old_role")
+        if not user_id_raw or old_role_raw is None:
+            raise HTTPException(status_code=422, detail="user_id and old_role are required")
+        try:
+            user_id = UUID(user_id_raw)
+        except Exception:
+            raise HTTPException(status_code=422, detail="Invalid user_id")
+        try:
+            user_old_role = UserRole(old_role_raw)
+        except Exception:
+            raise HTTPException(status_code=422, detail="Invalid old_role")
         user = await UserService.get_by_id(session, user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
-        
-        # Temporarily store the old role
-        user_old_role = UserRole(payload.get("old_role"))
         
         # Publish the role upgrade event
         event_published = event_service.publish_role_change_event(user, user_old_role)
