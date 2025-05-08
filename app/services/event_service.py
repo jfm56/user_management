@@ -44,12 +44,12 @@ class EventService:
         Returns:
             bool: True if event was published, False otherwise
         """
-        if not self.kafka_producer:
+        if self._kafka_producer is None:
             logger.warning(f"Kafka producer not available. Event {event_type} not published.")
             return False
             
         try:
-            return self.kafka_producer.publish_event(event_type, data)
+            return self._kafka_producer.publish_event(event_type, data)
         except Exception as e:
             logger.error(f"Failed to publish event {event_type}: {e}")
             return False

@@ -1,6 +1,13 @@
 import logging
-from celery import shared_task
-from app.celery_worker import app as celery
+try:
+    from celery import shared_task
+    from app.celery_worker import app as celery
+except ImportError:
+    def shared_task(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    celery = None
 from app.services.email_service import EmailService
 from app.utils.template_manager import TemplateManager
 from app.models.user_model import User

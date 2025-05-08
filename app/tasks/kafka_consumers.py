@@ -8,8 +8,32 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, Callable, List, Optional, Union
 
-from confluent_kafka import Consumer, KafkaException, KafkaError
-from celery import Celery
+try:
+    from confluent_kafka import Consumer, KafkaException, KafkaError
+except ImportError:
+    # Stub classes if confluent_kafka is not installed (for testing)
+    class KafkaException(Exception):
+        pass
+    class KafkaError(Exception):
+        pass
+    class Consumer:
+        def __init__(self, *args, **kwargs):
+            pass
+        def subscribe(self, topics):
+            pass
+        def poll(self, timeout=None):
+            return None
+        def commit(self, message=None):
+            pass
+        def close(self):
+            pass
+
+try:
+    from celery import Celery
+except ImportError:
+    class Celery:
+        """Stub Celery if not installed."""
+        pass
 
 from app.config.celery_config import kafka_bootstrap_servers, kafka_topics
 from app.services.kafka_service import EventTypes

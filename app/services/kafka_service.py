@@ -1,7 +1,18 @@
 import json
 import logging
 from typing import Any, Dict
-from confluent_kafka import Producer
+
+try:
+    from confluent_kafka import Producer
+except ImportError:
+    class Producer:
+        def __init__(self, *args, **kwargs):
+            pass
+        def produce(self, *args, **kwargs):
+            pass
+        def flush(self):
+            pass
+
 from app.config.celery_config import kafka_bootstrap_servers, kafka_topics
 
 logger = logging.getLogger(__name__)

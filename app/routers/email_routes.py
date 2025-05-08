@@ -1,12 +1,12 @@
 """
 Router for email notification testing endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, Optional
 from uuid import UUID
 
-from app.dependencies import get_db, get_email_service, get_current_user
+from app.dependencies import get_db, get_email_service, get_current_user, get_settings
 from app.services.email_service import EmailService
 from app.models.user_model import User, UserRole
 from app.services.user_service import UserService
@@ -20,8 +20,8 @@ router = APIRouter(
 @router.post("/test/verification", status_code=202)
 async def test_verification_email(
     request: Request,
-    user_id: str, 
     background_tasks: BackgroundTasks,
+    payload: Dict[str, Any] = Body(...),
     session: AsyncSession = Depends(get_db),
     email_service: EmailService = Depends(get_email_service),
     current_user_data: dict = Depends(get_current_user)
@@ -36,6 +36,7 @@ async def test_verification_email(
     
     # Get the user to send the verification email to
     try:
+        user_id = payload.get("user_id")
         user = await UserService.get_by_id(session, user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
@@ -50,15 +51,18 @@ async def test_verification_email(
             background_tasks.add_task(email_service.send_verification_email, user)
             return {"status": "success", "message": f"Verification email scheduled for user {user.email} (direct send)"}
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send verification email: {str(e)}")
 
 @router.post("/test/account-locked", status_code=202)
 async def test_account_locked_email(
     request: Request,
-    user_id: str, 
-    background_tasks: BackgroundTasks,
+    payload: Dict[str, Any] = Body(...),
     session: AsyncSession = Depends(get_db),
+    email_service: EmailService = Depends(get_email_service),
+    settings=Depends(get_settings),
     current_user_data: dict = Depends(get_current_user)
 ):
     """
@@ -71,23 +75,30 @@ async def test_account_locked_email(
     
     # Get the user to send the account locked email to
     try:
+        user_id = payload.get("user_id")
         user = await UserService.get_by_id(session, user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
         
-        # Publish the account locked event
-        event_published = event_service.publish_account_locked_event(user)
-        
-        return {"status": "success", "message": f"Account locked email event published for user {user.email}"}
+        # Direct send for account locked test endpoint
+        support_url = f"{settings.server_base_url.rstrip('/')}/support"
+        data = {
+            "name": user.nickname or user.first_name or "User",
+            "support_url": support_url,
+            "email": user.email
+        }
+        await email_service.send_user_email_async(data, 'account_locked')
+        return {"status": "success", "message": f"Account locked email sent to user {user.email} (test direct)"}
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send account locked email: {str(e)}")
 
 @router.post("/test/role-upgrade", status_code=202)
 async def test_role_upgrade_email(
     request: Request,
-    user_id: str,
-    old_role: str,
+    payload: Dict[str, Any] = Body(...),
     session: AsyncSession = Depends(get_db),
     current_user_data: dict = Depends(get_current_user)
 ):
@@ -101,17 +112,20 @@ async def test_role_upgrade_email(
     
     # Get the user to send the role upgrade email to
     try:
+        user_id = payload.get("user_id")
         user = await UserService.get_by_id(session, user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
         
         # Temporarily store the old role
-        user_old_role = UserRole(old_role)
+        user_old_role = UserRole(payload.get("old_role"))
         
         # Publish the role upgrade event
         event_published = event_service.publish_role_change_event(user, user_old_role)
         
         return {"status": "success", "message": f"Role upgrade email event published for user {user.email}"}
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send role upgrade email: {str(e)}")

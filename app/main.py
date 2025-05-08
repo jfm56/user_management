@@ -58,6 +58,9 @@ async def http_exception_handler(request, exc):
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
+    # Forward HTTP exceptions to the HTTP exception handler to preserve status codes
+    if isinstance(exc, StarletteHTTPException):
+        return await http_exception_handler(request, exc)
     logger.error(f"Unhandled exception: {exc}")
     return JSONResponse(
         status_code=500,

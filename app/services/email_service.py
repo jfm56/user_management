@@ -48,12 +48,12 @@ class EmailService:
         Returns:
             bool: True if event was published successfully, False otherwise
         """
-        if not self.kafka_producer:
+        if self._kafka_producer is None:
             return False
             
         try:
             from app.services.kafka_service import EventTypes
-            return self.kafka_producer.publish_event(
+            return self._kafka_producer.publish_event(
                 EventTypes.EMAIL_NOTIFICATION,
                 {
                     "subtype": event_subtype,

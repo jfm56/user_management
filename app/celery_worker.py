@@ -1,4 +1,19 @@
-from celery import Celery
+try:
+    from celery import Celery
+except ImportError:
+    class Celery:
+        """Stub Celery if not installed."""
+        def __init__(self, *args, **kwargs):
+            self.conf = self
+        def config_from_object(self, obj):
+            pass
+        def autodiscover_tasks(self, modules):
+            pass
+        def update(self, **kwargs):
+            pass
+        def start(self):
+            pass
+
 import os
 import importlib
 
