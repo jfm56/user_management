@@ -100,7 +100,8 @@ class EmailService:
         subject_map = {
             'email_verification': "Verify Your Account",
             'password_reset': "Password Reset Instructions",
-            'account_locked': "Account Locked Notification"
+            'account_locked': "Account Locked Notification",
+            'role_upgrade': "Role Upgrade Notification"
         }
 
         if email_type not in subject_map:
@@ -108,9 +109,19 @@ class EmailService:
 
         html_content = self.template_manager.render_template(email_type, **user_data)
         
-        # Publish email event (non-blocking) then send directly
-        self._publish_email_event('verification_email', user_data)
-        self.smtp_client.send_email(subject_map[email_type], html_content, user_data['email'])
+        # Publish email event (non-blocking)
+        try:
+            self._publish_email_event(email_type, user_data)
+        except Exception as e:
+            logger.error(f"Failed to publish email event {email_type}: {e}")
+
+        # Send email directly, swallow any SMTP errors
+        try:
+            self.smtp_client.send_email(subject_map[email_type], html_content, user_data.get('email'))
+        except Exception as e:
+            logger.error(f"Error sending async email [{email_type}] to {user_data.get('email')}: {e}")
+            return False
+
         return True
 
     async def send_verification_email(self, user: User):

@@ -76,3 +76,16 @@ async def test_send_verification_email_missing_token(email_service):
     )
     with pytest.raises(ValueError):
         await email_service.send_verification_email(user)
+
+@pytest.mark.asyncio
+async def test_send_user_email_async_role_upgrade_success(email_service):
+    # Test sending role upgrade emails asynchronously
+    user_data = {'email': 'a@b.com', 'name': 'Alice'}
+    result = await email_service.send_user_email_async(user_data, 'role_upgrade')
+    assert result is True
+    # Email should be sent via SMTP client
+    assert email_service.smtp_client.sent
+    subject, content, recipient = email_service.smtp_client.sent[0]
+    assert subject == "Role Upgrade Notification"
+    assert content == "<html>dummy</html>"
+    assert recipient == 'a@b.com'

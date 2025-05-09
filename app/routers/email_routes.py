@@ -11,6 +11,7 @@ from app.services.email_service import EmailService
 from app.models.user_model import User, UserRole
 from app.services.user_service import UserService
 from app.services.event_service import event_service
+from app.schemas.email_schemas import VerificationEmailRequest, AccountLockedEmailRequest, RoleUpgradeEmailRequest
 
 router = APIRouter(
     prefix="/emails",
@@ -24,7 +25,7 @@ def admin_required(current_user_data: dict = Depends(get_current_user)):
 
 @router.post("/test/verification", status_code=202, dependencies=[Depends(admin_required)])
 async def test_verification_email(
-    request: Request,
+    payload: VerificationEmailRequest,
     background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_db),
     email_service: EmailService = Depends(get_email_service)
@@ -35,8 +36,7 @@ async def test_verification_email(
     """
     # Get the user to send the verification email to
     try:
-        body = await request.json()
-        user_id_raw = body.get("user_id")
+        user_id_raw = payload.user_id
         if not user_id_raw:
             raise HTTPException(status_code=422, detail="user_id is required")
         try:
@@ -64,7 +64,7 @@ async def test_verification_email(
 
 @router.post("/test/account-locked", status_code=202, dependencies=[Depends(admin_required)])
 async def test_account_locked_email(
-    request: Request,
+    payload: AccountLockedEmailRequest,
     session: AsyncSession = Depends(get_db),
     email_service: EmailService = Depends(get_email_service),
     settings=Depends(get_settings)
@@ -75,8 +75,7 @@ async def test_account_locked_email(
     """
     # Get the user to send the account locked email to
     try:
-        body = await request.json()
-        user_id_raw = body.get("user_id")
+        user_id_raw = payload.user_id
         if not user_id_raw:
             raise HTTPException(status_code=422, detail="user_id is required")
         try:
@@ -104,8 +103,11 @@ async def test_account_locked_email(
 
 @router.post("/test/role-upgrade", status_code=202, dependencies=[Depends(admin_required)])
 async def test_role_upgrade_email(
-    request: Request,
-    session: AsyncSession = Depends(get_db)
+    payload: RoleUpgradeEmailRequest,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_db),
+    email_service: EmailService = Depends(get_email_service),
+    settings=Depends(get_settings)
 ):
     """
     Test endpoint to send a role upgrade email to a user.
@@ -113,27 +115,28 @@ async def test_role_upgrade_email(
     """
     # Get the user to send the role upgrade email to
     try:
-        body = await request.json()
-        user_id_raw = body.get("user_id")
-        old_role_raw = body.get("old_role")
-        if not user_id_raw or old_role_raw is None:
-            raise HTTPException(status_code=422, detail="user_id and old_role are required")
+        user_id_raw = payload.user_id
+        user_old_role = payload.old_role
+        if not user_id_raw:
+            raise HTTPException(status_code=422, detail="user_id is required")
         try:
             user_id = UUID(user_id_raw)
         except Exception:
             raise HTTPException(status_code=422, detail="Invalid user_id")
-        try:
-            user_old_role = UserRole(old_role_raw)
-        except Exception:
-            raise HTTPException(status_code=422, detail="Invalid old_role")
         user = await UserService.get_by_id(session, user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
         
-        # Publish the role upgrade event
+        # Publish the role upgrade event and schedule direct send
         event_published = event_service.publish_role_change_event(user, user_old_role)
-        
-        return {"status": "success", "message": f"Role upgrade email event published for user {user.email}"}
+        data = {
+            "name": user.nickname or user.first_name or "User",
+            "old_role": user_old_role.value,
+            "new_role": user.role.value,
+            "email": user.email
+        }
+        background_tasks.add_task(email_service.send_user_email_async, data, 'role_upgrade')
+        return {"status": "success", "message": f"Role upgrade email scheduled for user {user.email}"}
     
     except HTTPException:
         raise

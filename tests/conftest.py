@@ -57,14 +57,13 @@ def pytest_collection_modifyitems(config, items):
 # Unified Email Service Fixture
 @pytest.fixture
 def email_service():
-    if settings.send_real_mail == 'true':
-        template_manager = TemplateManager()
-        return EmailService(template_manager=template_manager)
-    else:
-        mock_service = AsyncMock(spec=EmailService)
-        mock_service.send_verification_email.return_value = None
-        mock_service.send_user_email.return_value = None
-        return mock_service
+    # always return a mock for email service in tests
+    mock_service = AsyncMock(spec=EmailService)
+    # stub out email sending methods
+    mock_service.send_verification_email.return_value = None
+    mock_service.send_user_email.return_value = None
+    mock_service.send_user_email_async.return_value = None
+    return mock_service
 
 # Initialize database once per session
 @pytest.fixture(scope="session", autouse=True)
@@ -94,7 +93,7 @@ async def db_session(setup_database):
             await session.close()
 
 # Async HTTP client for API tests
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport
 
 @pytest.fixture(scope="function")
 async def async_client(db_session):
