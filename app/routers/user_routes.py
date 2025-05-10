@@ -30,7 +30,12 @@ from app.dependencies import get_current_user, get_db, get_email_service, requir
 from app.schemas.pagination_schema import EnhancedPagination
 from app.schemas.token_schema import TokenResponse
 from app.schemas.user_schemas import LoginRequest, UserBase, UserCreate, UserListResponse, UserResponse, UserUpdate
+from pydantic import BaseModel
 from app.services.user_service import UserService
+
+# Dependency to provide UserService for FastAPI DI
+def get_user_service():
+    return UserService
 from app.services.jwt_service import create_access_token
 from app.utils.link_generation import create_user_links, generate_pagination_links
 from app.dependencies import get_settings
@@ -41,6 +46,8 @@ logger = logging.getLogger("app.services.user_service")
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 settings = get_settings()
+
+
 @router.get("/users/{user_id}", response_model=UserResponse, name="get_user", tags=["User Management Requires (Admin or Manager Roles)"])
 async def get_user(user_id: UUID, request: Request, db: AsyncSession = Depends(get_db), token: str = Depends(oauth2_scheme), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
     """
@@ -217,7 +224,10 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_db
     return user
 
 @router.post("/login/", response_model=TokenResponse, tags=["Login and Registration"])
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_db)):
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    session: AsyncSession = Depends(get_db)
+):
     if await UserService.is_account_locked(session, form_data.username):
         raise HTTPException(status_code=400, detail="Account locked due to too many failed login attempts.")
 
@@ -235,15 +245,19 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Async
     raise HTTPException(status_code=401, detail="Incorrect email or password.")
 
 @router.get("/verify-email/{user_id}/{token}", status_code=status.HTTP_200_OK, name="verify_email", tags=["Login and Registration"])
-async def verify_email(
-    user_id: UUID,
-    token: str,
-    db: AsyncSession = Depends(get_db),
-    email_service: EmailService = Depends(get_email_service)
-):
-    logger.info(f"Attempting email verification for user_id={user_id} with token={token}")
+async def verify_email(user_id: str, token: str, db: AsyncSession = Depends(get_db), user_service: UserService = Depends(get_user_service)):
+    """
+    Verify a user's email address using the provided token.
+    """
     
     try:
+        # Parse the UUID from the string
+        try:
+            user_id = UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid user_id format")
+            
+        # Use the token from path parameter
         success = await UserService.verify_email_with_token(db, user_id, token)
         if success:
             logger.info(f"Email verified successfully for user_id={user_id}")
@@ -254,6 +268,8 @@ async def verify_email(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired verification token"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Exception during email verification: {e}")
         raise HTTPException(

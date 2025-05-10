@@ -4,6 +4,15 @@
 
 The User Management System is a robust, scalable application for managing user accounts and handling user-related operations. It provides comprehensive user authentication, authorization, and profile management capabilities with a modern event-driven architecture for notifications.
 
+## Latest Updates
+
+### May 2025
+
+- **Database Migration Improvements**: Added conditional checks to prevent duplicate table errors during migrations
+- **API Form Interface Enhancements**: Implemented Pydantic models with schema examples for improved Swagger UI forms
+- **Nginx Configuration Upgrade**: Updated to use Docker's internal DNS resolver for better container networking
+- **Enum Dropdowns**: Added dropdown selection menus for role fields in API forms
+
 ![User Management System Architecture](https://via.placeholder.com/800x400?text=User+Management+System+Architecture)
 
 ## Key Features
@@ -141,26 +150,63 @@ JWT_SECRET_KEY=your_jwt_secret_key
    docker compose exec fastapi pytest
    ```
 
+3. Managing database migrations:
+   ```bash
+   # Apply all pending migrations
+   docker compose exec fastapi alembic upgrade head
+   
+   # Create a new migration
+   docker compose exec fastapi alembic revision -m "your migration description"
+   ```
+   
+   Note: The migration system now includes guards against duplicate table errors with conditional checks in the scripts.
+
 ## Developer Guidelines
 
-### Code Organization
+### Architecture & Code Organization
 
-The project follows a clean architecture pattern with the following structure:
+The project implements a hybrid architecture combining Clean Architecture principles with Event-Driven Design:
+
+#### Architecture Patterns
+
+1. **Clean Architecture Layer Separation**
+   - Domain-driven design with clear separation of concerns
+   - Business logic isolated in service layer
+   - Data access and API endpoints in separate layers
+
+2. **Event-Driven Notification System**
+   - Kafka topics for message distribution
+   - Celery workers for asynchronous processing
+   - Producers and consumers decoupled for scalability
+
+3. **JWT-Based Authentication & Authorization**
+   - Token-based security with role-based permissions
+   - Custom exception handling for proper error code propagation
+   - Nginx configured for secure header passing
+
+4. **Resilient Data Access Layer**
+   - Conditional database migrations with idempotency checks
+   - Asynchronous database operations with SQLAlchemy
+   - Transaction management for data integrity
+
+#### Directory Structure
 
 ```
 user_management/
 ├── app/                  # Main application code
-│   ├── config/          # Configuration files
-│   ├── dependencies/    # FastAPI dependencies
-│   ├── models/          # Database models
-│   ├── routers/         # API endpoints
-│   ├── schemas/         # Pydantic schemas
-│   ├── services/        # Business logic
-│   ├── tasks/           # Celery tasks
-│   └── utils/           # Utility functions
-├── settings/            # Global settings
-├── tests/               # Test suite
-└── migrations/          # Alembic migrations
+│   ├── dependencies/    # FastAPI dependencies for DI
+│   ├── models/          # SQLAlchemy database models
+│   ├── routers/         # API endpoints with input validation
+│   ├── schemas/         # Pydantic validation schemas
+│   ├── services/        # Business logic & transaction handling
+│   ├── tasks/           # Celery async task definitions
+│   └── utils/           # Helper functions & common utilities
+├── settings/            # Environment-specific configurations
+├── nginx/               # Web server & proxy configurations
+├── alembic/             # Database migration scripts
+├── email_templates/     # HTML & text email templates
+├── tests/               # Test suite organized by component
+└── scripts/             # Utility scripts for deployment & setup
 ```
 
 ### Coding Standards
@@ -176,7 +222,17 @@ user_management/
 
 If you encounter 401 Unauthorized errors returning as 500 Internal Server Errors:
 
-1. **Nginx Configuration**: Ensure that Nginx is correctly passing the error codes from the FastAPI app without modification. Check the `nginx/nginx.conf` file.
+1. **Nginx Configuration**: Ensure that Nginx is correctly passing the error codes from the FastAPI app without modification. Check the `nginx/nginx.conf` file. The recent update adds Docker's internal DNS resolver to avoid stale IP references:
+   ```nginx
+   # Use Docker DNS resolver for dynamic upstream resolution
+   resolver 127.0.0.11 valid=30s;
+   set $backend fastapi:8000;
+   
+   location / {
+       proxy_pass http://$backend;
+       # Other proxy settings...
+   }
+   ```
 
 2. **FastAPI Exception Handlers**: The application defines custom exception handlers for authentication errors. Make sure they're correctly registered in `app/main.py`.
 
@@ -200,6 +256,17 @@ If email notifications are not being sent:
 2. **Celery Worker**: Check if the Celery worker is running and processing tasks:
    ```bash
    docker compose logs celery-worker
+   ```
+
+3. **API Form Fields**: If Swagger UI forms don't show expected input fields, check that your route handlers use Pydantic models for request bodies rather than manually parsing from the request object.
+
+4. **Database Migration Issues**: If you encounter database migration conflicts or errors:
+   ```bash
+   # Check current migration status
+   docker compose exec fastapi alembic current
+   
+   # View migration history
+   docker compose exec fastapi alembic history
    ```
 
 3. **SMTP Configuration**: Verify your SMTP settings in the `.env` file or Docker environment variables.

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
     def get_resolved_database_url(self) -> str:
         # Ensure asyncpg driver is used
