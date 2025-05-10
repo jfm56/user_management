@@ -97,6 +97,13 @@ async def test_account_locked_email(
         if not user:
             raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found")
         
+        # Update user account status to locked in the database
+        user.is_locked = True
+        user.failed_login_attempts = settings.max_login_attempts
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        
         # Direct send for account locked test endpoint
         support_url = f"{settings.server_base_url.rstrip('/')}/support"
         dashboard_url = f"{settings.server_base_url.rstrip('/')}/dashboard"
@@ -107,7 +114,7 @@ async def test_account_locked_email(
             "dashboard_url": dashboard_url
         }
         await email_service.send_user_email_async(data, 'account_locked')
-        return {"status": "success", "message": f"Account locked email sent to user {user.email} (test direct)"}
+        return {"status": "success", "message": f"Account locked email sent to user {user.email} and account has been locked"}
     
     except HTTPException:
         raise
